@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { X, User, Upload, Store, Phone, Mail, Shield, Lock, MapPin, LogOut } from 'lucide-react';
 
 export default function UserProfileModal({ setShowProfileEdit, user, storeProfile, activeStoreId, handleUpdateStoreProfile, handleUpdateUserProfile, handleChangePassword, handleLogout }) {
-    if (!showProfileEdit) return null;
+    // Pengecekan 'if (!showProfileEdit) return null;' DIHAPUS karena menyebabkan error ReferenceError.
+    // Modal sudah dirender kondisional dari App.jsx.
 
     const [activeTab, setActiveTab] = useState('pribadi'); 
 

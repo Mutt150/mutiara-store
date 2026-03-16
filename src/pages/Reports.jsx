@@ -1,16 +1,12 @@
-import React, { useState } from 'react';
-import { FileText, Printer, Download, Package } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { FileText, Printer, Download, Package, BarChart2, TrendingUp, DollarSign, Activity } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/helpers';
 
 export default function Reports({ orders, inventory }) {
     const currentMonth = new Date().getMonth();
-    const monthlyOrders = orders.filter(o => {
-        const orderDate = o.date ? (o.date.toDate ? o.date.toDate() : new Date(o.date)) : new Date();
-        return orderDate.getMonth() === currentMonth;
-    });
-
     const currentYear = new Date().getFullYear();
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
+    
+    const [selectedMonth, setSelectedMonth] = useState(currentMonth.toString());
     const [selectedYear, setSelectedYear] = useState(currentYear.toString());
     const [isAllData, setIsAllData] = useState(false);
 
@@ -21,7 +17,8 @@ export default function Reports({ orders, inventory }) {
 
     const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
-    const getFilteredOrdersForReport = () => {
+    const filteredOrders = useMemo(() => {
+        if (!orders) return [];
         if (isAllData) return orders;
 
         return orders.filter(o => {
@@ -30,26 +27,54 @@ export default function Reports({ orders, inventory }) {
             const sameYear = d.getFullYear() === parseInt(selectedYear);
             return sameMonth && sameYear;
         });
-    }
+    }, [orders, selectedMonth, selectedYear, isAllData]);
+
+    const summaryStats = useMemo(() => {
+        let totalRevenue = 0;
+        let totalNetProfit = 0;
+        
+        filteredOrders.forEach(o => {
+            totalRevenue += (o.financials?.revenue || 0);
+            totalNetProfit += (o.financials?.netProfit || 0);
+        });
+
+        const totalTransactions = filteredOrders.length;
+        const averageOrderValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+        return { totalRevenue, totalNetProfit, totalTransactions, averageOrderValue };
+    }, [filteredOrders]);
+
+    const totalAssetValue = useMemo(() => {
+        return (inventory || []).reduce((sum, i) => sum + (i.stock * (i.avgCost || 0)), 0);
+    }, [inventory]);
+
+    const activeProducts = useMemo(() => {
+        return (inventory || []).filter(i => i.stock > 0).length;
+    }, [inventory]);
+
+    const getSequentialID = (orderId) => {
+        if (!orders) return "???";
+        const index = orders.findIndex(o => o.id === orderId);
+        if (index === -1) return "???";
+        const num = orders.length - index;
+        return `NOTA #${String(num).padStart(5, '0')}`;
+    };
 
     const downloadTxCSV = () => {
-        const dataToDownload = getFilteredOrdersForReport();
-
+        const dataToDownload = filteredOrders;
         const headers = [
             'Order_ID', 'Tanggal', 'Jam', 'Customer', 'Kasir',
             'Nama_Barang_Terjual', 'Qty', 'Satuan', 'Harga_Jual_Satuan',
             'Modal_Satuan', 'Subtotal_Jual', 'Subtotal_Modal', 'Total_Nota',
             'Total_Laba_Nota', 'Metode_Pembayaran', 'Status_Pembayaran', 'Catatan'
         ];
-
         const rows = [];
-
         dataToDownload.forEach(o => {
             const orderDate = o.date ? (o.date.toDate ? o.date.toDate() : new Date(o.date)) : new Date();
             const dateStr = orderDate.toLocaleDateString('id-ID');
             const timeStr = orderDate.toLocaleTimeString('id-ID');
 
-            const orderId = `"${o.id}"`;
+            const orderId = `"${getSequentialID(o.id)}"`;
             const customer = `"${o.customerName || '-'}"`;
             const cashier = `"${o.cashierName ? o.cashierName.split('@')[0] : '-'}"`;
             const paymentMethod = `"${o.paymentMethod || 'Cash'}"`;
@@ -63,7 +88,6 @@ export default function Reports({ orders, inventory }) {
                 o.items.forEach(item => {
                     const modalSatuan = item.costBasis || 0;
                     const subtotalModal = modalSatuan * item.qty;
-
                     rows.push([
                         orderId, `"${dateStr}"`, `"${timeStr}"`, customer, cashier,
                         `"${item.name}"`, item.qty, `"${item.unit}"`, item.price,
@@ -79,13 +103,12 @@ export default function Reports({ orders, inventory }) {
                 ]);
             }
         });
-
         const csvContent = "sep=;\n" + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        const fileName = isAllData ? `Laporan_Detail_Transaksi_SemuaData.csv` : `Laporan_Detail_Transaksi_${months[selectedMonth]}_${selectedYear}.csv`;
+        const fileName = isAllData ? `Laporan_Transaksi_SemuaData.csv` : `Laporan_Transaksi_${months[selectedMonth]}_${selectedYear}.csv`;
         link.setAttribute("download", fileName);
         document.body.appendChild(link);
         link.click();
@@ -96,9 +119,7 @@ export default function Reports({ orders, inventory }) {
             `"${i.name}"`, i.stock, `"${i.unit}"`, i.avgCost,
             i.stock * i.avgCost, i.sellPrice || 0, `"${i.lastSupplier || '-'}"`
         ]);
-
         const headers = ['Nama Barang', 'Stok Saat Ini', 'Satuan', 'Harga Rata-rata Beli', 'Total Nilai Aset', 'Harga Jual (Rencana)', 'Supplier Terakhir'];
-
         const csvContent = "sep=;\n" + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -109,126 +130,172 @@ export default function Reports({ orders, inventory }) {
         link.click();
     };
 
-    const totalAssetValue = inventory.reduce((sum, i) => sum + (i.stock * i.avgCost), 0);
-
     return (
-        <div className="pb-24 md:pb-0 space-y-8 animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-800">Pusat Laporan</h2>
+        <div className="flex flex-col gap-6 pb-24 md:pb-0 animate-fade-in w-full max-w-full min-w-0 overflow-x-hidden">
+            {/* Header Title */}
+            <div className="w-full">
+                <h2 className="text-2xl font-extrabold text-gray-800 tracking-tight">Pusat Laporan</h2>
+                <p className="text-sm text-gray-500 font-medium">Download dan cetak laporan keuangan toko</p>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-pink-100 hover:shadow-lg hover:-translate-y-1 transition-all">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl"><FileText size={28} /></div>
-                        <div>
-                            <h3 className="font-bold text-xl text-gray-800">Laporan Transaksi</h3>
-                            <p className="text-sm text-gray-400">Rekap semua penjualan dan pembelian barang.</p>
-                        </div>
-                    </div>
-
-                    <div className="mb-4 space-y-3">
-                        <label className="text-xs font-bold text-gray-500 ml-1 mb-1 block">Pilih Periode Download</label>
-                        <div className="flex gap-2">
-                            <select disabled={isAllData} className="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
-                                {months.map((m, idx) => <option key={idx} value={idx}>{m}</option>)}
-                            </select>
-                            <select disabled={isAllData} className="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-50" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                            <input type="checkbox" id="allData" checked={isAllData} onChange={(e) => setIsAllData(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"/>
-                            <label htmlFor="allData" className="text-sm text-gray-600">Download Semua Data (Tanpa Filter)</label>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-col md:flex-row">
-                        <button onClick={() => window.print()} className="flex-1 py-4 bg-gray-900 text-white font-bold rounded-2xl hover:bg-gray-800 transition-all flex justify-center gap-2 items-center"><Printer size={18} /> Print</button>
-                        <button onClick={downloadTxCSV} className="flex-1 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex justify-center gap-2 items-center"><Download size={18} /> Excel/CSV</button>
-                    </div>
+            {/* Dark Summary Card - Perbaikan 2 Kolom di HP */}
+            <div className="bg-slate-900 rounded-[24px] p-5 md:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-200 w-full min-w-0">
+                <div className="absolute top-4 right-4 opacity-5 pointer-events-none">
+                    <BarChart2 size={100} strokeWidth={1} />
                 </div>
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-pink-100 hover:shadow-lg hover:-translate-y-1 transition-all">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><Package size={28} /></div>
-                        <div>
-                            <h3 className="font-bold text-xl text-gray-800">Laporan Stok Aset</h3>
-                            <p className="text-sm text-gray-400">Nilai aset stok saat ini berdasarkan rata-rata harga beli.</p>
+                
+                <p className="text-[10px] md:text-xs font-bold text-slate-400 tracking-widest uppercase mb-1 truncate">
+                    {isAllData ? 'SEMUA WAKTU' : `${months[selectedMonth]} ${selectedYear}`}
+                </p>
+                <h3 className="text-xl md:text-2xl font-bold mb-5 md:mb-6 text-slate-50 truncate">Ringkasan Periode</h3>
+                
+                {/* PERBAIKAN: grid-cols-2 untuk HP agar pas dan rapi */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 relative z-10 w-full min-w-0">
+                    <div className="bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-700/50 min-w-0 w-full">
+                        <div className="flex items-center gap-1.5 text-pink-400 mb-1.5 md:mb-2">
+                            <TrendingUp size={12} className="shrink-0"/>
+                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider truncate block">Total Omzet</span>
                         </div>
+                        <h4 className="text-sm sm:text-lg md:text-xl font-bold truncate block w-full" title={formatCurrency(summaryStats.totalRevenue)}>{formatCurrency(summaryStats.totalRevenue)}</h4>
                     </div>
-                    <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                        <span className="text-xs font-bold text-emerald-700 uppercase">Total Aset:</span>
-                        <span className="ml-2 font-bold text-xl text-emerald-800">{formatCurrency(totalAssetValue)}</span>
+                    <div className="bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-700/50 min-w-0 w-full">
+                        <div className="flex items-center gap-1.5 text-emerald-400 mb-1.5 md:mb-2">
+                            <DollarSign size={12} className="shrink-0"/>
+                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider truncate block">Laba Bersih</span>
+                        </div>
+                        <h4 className="text-sm sm:text-lg md:text-xl font-bold truncate block w-full" title={formatCurrency(summaryStats.totalNetProfit)}>{formatCurrency(summaryStats.totalNetProfit)}</h4>
                     </div>
-                    <button onClick={downloadStockCSV} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all flex justify-center gap-2 items-center"><Download size={18} /> Download Stok</button>
+                    <div className="bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-700/50 min-w-0 w-full">
+                        <div className="flex items-center gap-1.5 text-blue-400 mb-1.5 md:mb-2">
+                            <FileText size={12} className="shrink-0"/>
+                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider truncate block">Transaksi</span>
+                        </div>
+                        <h4 className="text-sm sm:text-lg md:text-xl font-bold truncate block w-full">{summaryStats.totalTransactions}</h4>
+                    </div>
+                    <div className="bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-700/50 min-w-0 w-full">
+                        <div className="flex items-center gap-1.5 text-yellow-400 mb-1.5 md:mb-2">
+                            <Activity size={12} className="shrink-0"/>
+                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider truncate block">Rata-Rata Nota</span>
+                        </div>
+                        <h4 className="text-sm sm:text-lg md:text-xl font-bold truncate block w-full" title={formatCurrency(summaryStats.averageOrderValue)}>{formatCurrency(summaryStats.averageOrderValue)}</h4>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-pink-100 overflow-hidden hover:shadow-md transition-shadow">
-                <div className="p-6 border-b border-pink-50">
-                    <h3 className="font-bold text-lg text-gray-800">Preview Laporan (Bulan Ini)</h3>
+            {/* Action Cards Grid - Dibuat flex column di HP */}
+            <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 print:hidden min-w-0 w-full">
+                {/* Laporan Transaksi */}
+                <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-gray-100 flex flex-col min-w-0 w-full">
+                    <div className="flex items-center gap-3 mb-4 md:mb-6 min-w-0">
+                        <div className="p-2.5 md:p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><FileText size={18} /></div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-sm md:text-lg text-gray-800 truncate block">Laporan Transaksi</h3>
+                            <p className="text-[9px] md:text-xs text-gray-400 truncate block">Rekap penjualan detail per nota</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4 min-w-0">
+                        <div className="min-w-0">
+                            <label className="text-[9px] md:text-[10px] font-bold text-gray-500 ml-1 mb-1 block truncate">Bulan</label>
+                            <select disabled={isAllData} className="w-full p-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-50 text-xs font-medium cursor-pointer truncate" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                                {months.map((m, idx) => <option key={idx} value={idx}>{m}</option>)}
+                            </select>
+                        </div>
+                        <div className="min-w-0">
+                            <label className="text-[9px] md:text-[10px] font-bold text-gray-500 ml-1 mb-1 block truncate">Tahun</label>
+                            <select disabled={isAllData} className="w-full p-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-50 text-xs font-medium cursor-pointer truncate" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mb-4 md:mb-6 flex items-center justify-between bg-gray-50 p-2 md:p-3 rounded-xl border border-gray-100 min-w-0">
+                        <span className="text-[10px] md:text-xs font-bold text-gray-600 truncate mr-2">Semua Data (Tanpa Filter)</span>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" className="sr-only peer" checked={isAllData} onChange={(e) => setIsAllData(e.target.checked)} />
+                            <div className="w-8 h-4 md:w-10 md:h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 md:after:h-4 md:after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <div className="flex gap-2 md:gap-3 mt-auto w-full">
+                        <button onClick={() => window.print()} className="flex-1 py-2.5 md:py-3 bg-slate-800 text-white font-bold rounded-xl active:scale-95 flex justify-center gap-1.5 items-center text-xs shadow-md">
+                            <Printer size={14} /> Print
+                        </button>
+                        <button onClick={downloadTxCSV} className="flex-[1.5] md:flex-1 py-2.5 md:py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 flex justify-center gap-1.5 items-center text-xs shadow-md shadow-blue-200 truncate px-2">
+                            <Download size={14} className="shrink-0" /> <span className="truncate">CSV/Excel</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-pink-50/50 text-gray-500 uppercase font-bold text-xs">
+                {/* Laporan Stok & Aset */}
+                <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-gray-100 flex flex-col min-w-0 w-full">
+                    <div className="flex items-center gap-3 mb-4 md:mb-6 min-w-0">
+                        <div className="p-2.5 md:p-3 bg-emerald-50 text-emerald-600 rounded-xl shrink-0"><Package size={18} /></div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-sm md:text-lg text-gray-800 truncate block">Laporan Stok Gudang</h3>
+                            <p className="text-[9px] md:text-xs text-gray-400 truncate block">Nilai inventaris aset saat ini</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-4 md:mb-6 p-4 md:p-5 bg-emerald-50/50 rounded-xl border border-emerald-100/50 flex flex-col justify-center h-full min-w-0">
+                        <span className="text-[9px] md:text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1 truncate block">Total Nilai Aset</span>
+                        <span className="font-extrabold text-xl md:text-3xl text-emerald-700 mb-1.5 truncate block w-full" title={formatCurrency(totalAssetValue)}>{formatCurrency(totalAssetValue)}</span>
+                        <span className="text-[9px] md:text-[10px] text-emerald-600/80 font-bold truncate block w-full">{activeProducts} produk aktif di gudang</span>
+                    </div>
+
+                    <button onClick={downloadStockCSV} className="w-full py-2.5 md:py-3 bg-emerald-600 text-white font-bold rounded-xl active:scale-95 flex justify-center gap-1.5 items-center text-xs shadow-md shadow-emerald-200 mt-auto truncate px-2">
+                        <Download size={14} className="shrink-0"/> <span className="truncate">Download Data Stok</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Table Preview */}
+            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden w-full min-w-0 flex flex-col">
+                <div className="p-4 md:p-5 border-b border-gray-50 flex justify-between items-center bg-white min-w-0 w-full">
+                    <h3 className="font-bold text-sm md:text-base text-gray-800 truncate flex-1">Preview ({isAllData ? 'Semua Data' : 'Bulan Ini'})</h3>
+                    <span className="text-[9px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full shrink-0 ml-2">{filteredOrders.length} TRX</span>
+                </div>
+
+                <div className="w-full overflow-x-auto custom-scrollbar flex-1">
+                    <table className="w-full text-xs text-left min-w-[650px]">
+                        <thead className="text-slate-400 uppercase font-bold text-[9px] tracking-wider border-b border-gray-50 bg-gray-50/50">
                             <tr>
-                                <th className="p-4 whitespace-nowrap">Tanggal</th>
-                                <th className="p-4 whitespace-nowrap">Uraian / Nota</th>
-                                <th className="p-4 whitespace-nowrap">Customer</th>
-                                <th className="p-4 text-right whitespace-nowrap">Omzet (Jual)</th>
-                                <th className="p-4 text-right whitespace-nowrap">Modal (HPP)</th>
-                                <th className="p-4 text-right whitespace-nowrap">Biaya Ops</th>
-                                <th className="p-4 text-right whitespace-nowrap">Laba Bersih</th>
+                                <th className="p-3 pl-4 md:pl-5 whitespace-nowrap">Tanggal</th>
+                                <th className="p-3 whitespace-nowrap">Nota</th>
+                                <th className="p-3 whitespace-nowrap">Customer</th>
+                                <th className="p-3 text-right whitespace-nowrap">Omzet</th>
+                                <th className="p-3 text-right whitespace-nowrap">Modal (HPP)</th>
+                                <th className="p-3 text-right whitespace-nowrap">Biaya Ops</th>
+                                <th className="p-3 pr-4 md:pr-5 text-right whitespace-nowrap">Laba Bersih</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {monthlyOrders.slice(0, 10).map(o => (
-                                <tr key={o.id} className="hover:bg-pink-50/20 transition-colors">
-                                    <td className="p-4 whitespace-nowrap">{formatDate(o.date)}</td>
-                                    <td className="p-4 font-bold text-gray-700 whitespace-nowrap">#{o.id.slice(-4).toUpperCase()}</td>
-                                    <td className="p-4 text-gray-600 whitespace-nowrap">{o.customerName || '-'}</td>
-                                    <td className="p-4 text-right text-gray-800 font-medium whitespace-nowrap">{formatCurrency(o.financials.revenue)}</td>
-                                    <td className="p-4 text-right text-gray-500 whitespace-nowrap">{formatCurrency(o.financials.cogs)}</td>
-                                    <td className="p-4 text-right text-red-400 whitespace-nowrap">{formatCurrency(o.financials.expenseTotal)}</td>
-                                    <td className="p-4 text-right font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(o.financials.netProfit)}</td>
+                        <tbody className="divide-y divide-gray-50/80">
+                            {filteredOrders.slice(0, 15).map(o => (
+                                <tr key={o.id} className="hover:bg-pink-50/30 transition-colors">
+                                    <td className="p-3 pl-4 md:pl-5 text-gray-500 whitespace-nowrap">{formatDate(o.date).split(',')[0]}</td>
+                                    <td className="p-3 font-bold text-pink-600 whitespace-nowrap">{getSequentialID(o.id)}</td>
+                                    <td className="p-3 text-gray-700 font-medium whitespace-nowrap max-w-[120px] truncate" title={o.customerName || '-'}>{o.customerName || '-'}</td>
+                                    <td className="p-3 text-right font-bold text-slate-700 whitespace-nowrap">{formatCurrency(o.financials.revenue)}</td>
+                                    <td className="p-3 text-right text-gray-400 whitespace-nowrap">{formatCurrency(o.financials.cogs)}</td>
+                                    <td className="p-3 text-right text-orange-400 whitespace-nowrap">{formatCurrency(o.financials.expenseTotal)}</td>
+                                    <td className="p-3 pr-4 md:pr-5 text-right font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(o.financials.netProfit)}</td>
                                 </tr>
                             ))}
-                            {monthlyOrders.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">Belum ada data bulan ini.</td></tr>}
+                            {filteredOrders.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" className="p-8 text-center text-gray-400 text-xs border-t border-dashed">
+                                        Belum ada data bulan ini.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
-
-                <div className="md:hidden p-4 space-y-4">
-                    {monthlyOrders.slice(0, 10).map(o => (
-                        <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                            <div className="flex justify-between items-start border-b border-gray-50 pb-2">
-                                <div>
-                                    <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded mr-2">{formatDate(o.date)}</span>
-                                    <span className="font-bold text-pink-600 text-sm">#{o.id.slice(-4).toUpperCase()}</span>
-                                </div>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${o.paymentStatus === 'Lunas' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{o.paymentStatus}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Customer</p>
-                                    <p className="font-bold text-gray-800">{o.customerName || 'Umum'}</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-xl">
-                                <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Omzet</p>
-                                    <p className="font-bold text-blue-600 text-sm">{formatCurrency(o.financials.revenue)}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Laba Bersih</p>
-                                    <p className="font-bold text-emerald-600 text-sm">{formatCurrency(o.financials.netProfit)}</p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {monthlyOrders.length === 0 && <div className="p-8 text-center text-gray-400">Belum ada data bulan ini.</div>}
-                </div>
+                {filteredOrders.length > 15 && (
+                    <div className="text-center pt-2 pb-3 bg-gray-50/30 border-t border-gray-50">
+                        <span className="text-[9px] md:text-[10px] text-gray-400 font-medium">Menampilkan 15 data terbaru. Download CSV untuk data penuh.</span>
+                    </div>
+                )}
             </div>
         </div>
     );
