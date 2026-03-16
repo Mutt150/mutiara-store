@@ -40,52 +40,52 @@ export default function Dashboard({ user, storeProfile, activeStoreId, stats, or
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                 {/* Card 1: Omzet */}
                 <div className="relative p-5 rounded-[24px] bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200 flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[130px]">
-                    {/* PERBAIKAN: Meningkatkan opacity watermark */}
                     <div className="absolute -right-4 -bottom-4 text-white opacity-25 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <TrendingUp size={110} strokeWidth={2}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
-                        <div className="p-2 bg-white/20 text-white rounded-lg backdrop-blur-sm"><TrendingUp size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-pink-50 uppercase tracking-wider truncate">Total Omzet</span>
+                        <div className="p-2 bg-white/20 text-white rounded-lg backdrop-blur-sm shadow-sm"><TrendingUp size={16}/></div>
+                        {/* PERBAIKAN: Tulisan Omzet Ditebalkan dan dipastikan warna putih */}
+                        <span className="text-xs font-bold text-white uppercase tracking-wider truncate drop-shadow-md">Total Omzet</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-white tracking-tight truncate drop-shadow-sm" title={formatCurrency(stats.salesRevenue)}>{formatCurrency(stats.salesRevenue)}</h3>
                 </div>
 
                 {/* Card 2: Laba Kotor */}
                 <div className="relative p-5 rounded-[24px] bg-white border border-gray-100 shadow-sm hover:shadow-md flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[130px]">
-                    {/* PERBAIKAN: Mengganti warna ke pink-100 agar lebih terlihat dibandingkan gray-50 */}
                     <div className="absolute -right-6 -bottom-6 text-pink-100 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <Wallet size={120} strokeWidth={1.5}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
                         <div className="p-2 bg-pink-50 text-pink-600 rounded-lg"><Wallet size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Laba Kotor</span>
+                        {/* PERBAIKAN: Tulisan Ditebalkan dan warna diubah menjadi gray-700 agar lebih kontras */}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider truncate">Laba Kotor</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-gray-800 tracking-tight truncate" title={formatCurrency(stats.salesGrossProfit)}>{formatCurrency(stats.salesGrossProfit)}</h3>
                 </div>
 
                 {/* Card 3: Biaya Ops */}
                 <div className="relative p-5 rounded-[24px] bg-white border border-gray-100 shadow-sm hover:shadow-md flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[130px]">
-                    {/* PERBAIKAN: Mengganti warna ke orange-100 */}
                     <div className="absolute -right-6 -bottom-6 text-orange-100 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <Truck size={120} strokeWidth={1.5}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
                         <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Truck size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Biaya Ops</span>
+                        {/* PERBAIKAN: Tulisan Ditebalkan dan warna diubah menjadi gray-700 */}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider truncate">Biaya Ops</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-gray-800 tracking-tight truncate" title={formatCurrency(stats.orderExpenses + stats.generalExpTotal)}>{formatCurrency(stats.orderExpenses + stats.generalExpTotal)}</h3>
                 </div>
 
                 {/* Card 4: Laba Bersih */}
                 <div className="relative p-5 rounded-[24px] bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-200 flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[130px]">
-                    {/* PERBAIKAN: Mengganti warna ke emerald-100 */}
                     <div className="absolute -right-6 -bottom-6 text-emerald-100 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <DollarSign size={120} strokeWidth={1.5}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><DollarSign size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Laba Bersih</span>
+                        {/* PERBAIKAN: Tulisan Ditebalkan dan warna diubah menjadi gray-700 */}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider truncate">Laba Bersih</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-emerald-600 tracking-tight truncate" title={formatCurrency(stats.netProfitGlobal)}>{formatCurrency(stats.netProfitGlobal)}</h3>
                 </div>
@@ -95,26 +95,26 @@ export default function Dashboard({ user, storeProfile, activeStoreId, stats, or
             <div className="grid grid-cols-2 gap-4 w-full">
                 {/* Card 5: Nilai Aset Gudang */}
                 <div className="relative p-5 rounded-[24px] bg-white border border-gray-100 shadow-sm hover:shadow-md flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[120px]">
-                    {/* PERBAIKAN: Mengganti warna ke emerald-100 */}
                     <div className="absolute -right-6 -bottom-6 text-emerald-100 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <Archive size={120} strokeWidth={1.5}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Archive size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Nilai Aset Gudang</span>
+                        {/* PERBAIKAN: Tulisan Ditebalkan dan warna diubah menjadi gray-700 */}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider truncate">Nilai Aset Gudang</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-gray-800 tracking-tight truncate" title={formatCurrency(stats.totalAssetValue)}>{formatCurrency(stats.totalAssetValue)}</h3>
                 </div>
 
                 {/* Card 6: Modal Terjual */}
                 <div className="relative p-5 rounded-[24px] bg-white border border-gray-100 shadow-sm hover:shadow-md flex flex-col justify-between gap-4 overflow-hidden group hover:-translate-y-1 transition-all duration-300 min-h-[120px]">
-                    {/* PERBAIKAN: Mengganti warna ke blue-100 */}
                     <div className="absolute -right-6 -bottom-6 text-blue-100 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                         <Layers size={120} strokeWidth={1.5}/>
                     </div>
                     <div className="relative z-10 flex items-center gap-2">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Layers size={16}/></div>
-                        <span className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Modal Terjual (HPP)</span>
+                        {/* PERBAIKAN: Tulisan Ditebalkan dan warna diubah menjadi gray-700 */}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider truncate">Modal Terjual (HPP)</span>
                     </div>
                     <h3 className="relative z-10 text-xl md:text-[26px] font-bold text-gray-800 tracking-tight truncate" title={formatCurrency(stats.totalCOGS)}>{formatCurrency(stats.totalCOGS)}</h3>
                 </div>
@@ -122,22 +122,20 @@ export default function Dashboard({ user, storeProfile, activeStoreId, stats, or
 
             {/* Bagian Uang Laci / Dompet */}
             <div className="relative bg-[#0B1121] rounded-[32px] p-6 md:p-8 overflow-hidden shadow-xl border border-gray-800 w-full flex flex-col md:flex-row items-center justify-between gap-6 group hover:shadow-slate-900/40 transition-all duration-500">
-                {/* PERBAIKAN: Glow Effects Blur Background - Meningkatkan Opacity (Warna lebih terang) */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute -top-32 -left-32 w-80 h-80 bg-pink-500/40 rounded-full blur-[80px]"></div>
                     <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-blue-500/30 rounded-full blur-[80px]"></div>
                 </div>
                 
-                {/* PERBAIKAN: Watermark Icon - Opacity dinaikkan dari 0.03 menjadi 10 (0.1) */}
                 <div className="absolute -right-12 -bottom-12 opacity-10 group-hover:scale-105 transition-transform duration-700 pointer-events-none">
                     <Wallet size={240} strokeWidth={1} className="text-white" />
                 </div>
 
-                {/* Content */}
                 <div className="relative z-10 flex flex-col gap-2 flex-1 w-full">
                     <div className="flex items-center gap-2 text-gray-400 mb-1">
                         <Wallet size={16} className="text-pink-400"/> 
-                        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-gray-300">Dompet Toko (Saldo Laci)</span>
+                        {/* PERBAIKAN: Dibuat warna putih dan lebih besar agar sangat terlihat */}
+                        <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-white drop-shadow-md">Dompet Toko (Saldo Laci)</span>
                     </div>
                     <h1 className="text-3xl sm:text-4xl md:text-[44px] font-bold text-white tracking-tight truncate block w-full drop-shadow-md">
                         {formatCurrency(stats.cashOnHand)}
