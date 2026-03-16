@@ -13,7 +13,6 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
     const recentOrders = orders.slice(0, 50);
     const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
-    // Ambil history order yang punya data expenses
     const ordersWithExpenses = useMemo(() => {
         if (!orders) return [];
         return orders.filter(o => o.expenses && o.expenses.length > 0);
@@ -51,6 +50,13 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
         setGenTitle(''); setGenAmount('');
     };
 
+    const getSequentialID = (orderId) => {
+        const index = orders.findIndex(o => o.id === orderId);
+        if (index === -1) return "???";
+        const num = orders.length - index;
+        return `NOTA #${String(num).padStart(5, '0')}`;
+    };
+
     return (
         <div className="pb-24 md:pb-0 animate-fade-in w-full min-w-0">
             {/* Bagian Judul */}
@@ -59,7 +65,7 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
                 <p className="text-gray-500 text-sm mt-1">Kelola pengeluaran nota dan biaya umum toko</p>
             </div>
 
-            {/* PERBAIKAN: Warna tombol active diubah menjadi pink dengan teks putih */}
+            {/* Tombol Navigasi Tab */}
             <div className="flex w-full mb-6 md:mb-8">
                 <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full shadow-inner">
                     <button 
@@ -79,7 +85,7 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
 
             {tab === 'nota' ? (
                 <div className="w-full flex flex-col gap-6 md:gap-8 min-w-0">
-                    {/* BAGIAN ATAS: INPUT FORM (Full Width) */}
+                    {/* BAGIAN ATAS: INPUT FORM */}
                     <div className="bg-white p-5 md:p-8 rounded-[24px] md:rounded-[32px] shadow-sm border border-pink-100 w-full min-w-0 flex flex-col">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="p-3 bg-orange-100 text-orange-600 rounded-xl shrink-0"><Truck size={20} className="md:w-6 md:h-6" /></div>
@@ -94,7 +100,7 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
                                     value={selectedOrderId} onChange={e => setSelectedOrderId(e.target.value)}>
                                     <option value="">-- Cari Nota Terakhir --</option>
                                     {recentOrders.map(o => (
-                                        <option key={o.id} value={o.id}>Nota #{o.id.slice(-4).toUpperCase()} - {formatDate(o.date).split(',')[0]} - {o.customerName || 'Umum'} ({formatCurrency(o.financials.revenue)})</option>
+                                        <option key={o.id} value={o.id}>{getSequentialID(o.id)} - {formatDate(o.date).split(',')[0]} - {o.customerName || 'Umum'} ({formatCurrency(o.financials.revenue)})</option>
                                     ))}
                                 </select>
                             </div>
@@ -121,7 +127,7 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
                         </div>
                     </div>
 
-                    {/* BAGIAN BAWAH: RIWAYAT (Full Width) */}
+                    {/* BAGIAN BAWAH: RIWAYAT */}
                     <div className="bg-white p-5 md:p-8 rounded-[24px] md:rounded-[32px] shadow-sm border border-pink-100 w-full min-w-0 flex flex-col">
                         <div className="flex items-center gap-3 mb-4 md:mb-6">
                             <div className="p-2 md:p-3 bg-gray-100 text-gray-600 rounded-xl shrink-0"><History size={18} className="md:w-5 md:h-5"/></div>
@@ -142,7 +148,7 @@ export default function Expenses({ orders, generalExpenses, handleUpdateOrderExp
                                     {ordersWithExpenses.slice(0, 20).map(o => (
                                         <tr key={o.id} className="hover:bg-pink-50/30 transition-colors">
                                             <td className="p-3 md:p-4">
-                                                <div className="font-bold text-pink-600 text-xs md:text-sm">#{o.id.slice(-4).toUpperCase()}</div>
+                                                <div className="font-bold text-pink-600 text-xs md:text-sm">{getSequentialID(o.id)}</div>
                                                 <div className="text-[10px] md:text-xs text-gray-400">{formatDate(o.date).split(',')[0]}</div>
                                             </td>
                                             <td className="p-3 md:p-4 font-medium text-gray-700 truncate max-w-[150px]" title={o.customerName || 'Umum'}>{o.customerName || 'Umum'}</td>

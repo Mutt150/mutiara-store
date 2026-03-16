@@ -36,9 +36,15 @@ Aplikasi Point of Sale (POS) dan Sistem Manajemen Toko berbasis web yang diranca
 - **Biaya Umum Toko** — Catat pengeluaran harian (listrik, gaji, dsb.)
 - **Penarikan Modal (Prive)** — Catat pengambilan uang kas oleh pemilik toko
 
+### 📒 Buku Piutang
+- **Tab Khusus Piutang** — Mode tampilan tersendiri di halaman Riwayat yang otomatis menyaring semua transaksi berstatus *Belum Lunas*
+- **Kelompok per Pelanggan** — Piutang langsung dikelompokkan berdasarkan nama pelanggan secara otomatis
+- **Bayar Lunas Sekali Klik** — Tombol *Bayar Lunas* langsung memperbarui status pembayaran ke database secara real-time
+
 ### 📊 Dashboard & Laporan
 - **Live Dashboard** — Ringkasan Omzet, Laba Bersih, Nilai Aset Gudang, dan Uang Kas
 - **Grafik Penjualan** — Visualisasi tren penjualan 7 hari terakhir
+- **Barang Terlaris** — 5 produk teratas ditampilkan dalam kartu peringkat bergaya emas, dihitung otomatis berdasarkan total quantity terjual dan diperbarui real-time saat filter bulan/tahun diganti
 - **Export CSV/Excel** — Unduh rekap transaksi bulanan, seluruh waktu, atau laporan nilai aset gudang
 
 ### 👥 Multi-User & Manajemen Tim

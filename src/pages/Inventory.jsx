@@ -41,7 +41,7 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
     const [scanSuccessUI, setScanSuccessUI] = useState(false);
     
     // FUNGSI BARU: State untuk membatasi jumlah log restock yang tampil (Load More)
-    const [visibleHistory, setVisibleHistory] = useState(5);
+    const [visibleHistory, setVisibleHistory] = useState(7);
     
     const quantityInputRef = useRef(null);
     const barcodeInputRef = useRef(null);

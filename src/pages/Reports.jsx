@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { FileText, Printer, Download, Package, BarChart2, TrendingUp, DollarSign, Activity } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { FileText, Printer, Download, Package, BarChart2, TrendingUp, DollarSign, Activity, Trophy, Star } from 'lucide-react';
+import { formatCurrency, formatDate } from '../utils/helpers.js';
 
 export default function Reports({ orders, inventory }) {
     const currentMonth = new Date().getMonth();
@@ -51,6 +51,23 @@ export default function Reports({ orders, inventory }) {
     const activeProducts = useMemo(() => {
         return (inventory || []).filter(i => i.stock > 0).length;
     }, [inventory]);
+
+    // FITUR BARU: Menghitung Barang Terlaris (Top Selling Items)
+    const topSellingItems = useMemo(() => {
+        const itemMap = {};
+        filteredOrders.forEach(o => {
+            (o.items || []).forEach(item => {
+                if (!itemMap[item.itemId]) {
+                    itemMap[item.itemId] = { name: item.name, qty: 0, revenue: 0 };
+                }
+                itemMap[item.itemId].qty += parseFloat(item.qty || 0);
+                itemMap[item.itemId].revenue += parseFloat(item.subtotal || 0);
+            });
+        });
+        
+        // Convert object to array, sort by qty (Terbanyak), ambil 5 teratas
+        return Object.values(itemMap).sort((a, b) => b.qty - a.qty).slice(0, 5);
+    }, [filteredOrders]);
 
     const getSequentialID = (orderId) => {
         if (!orders) return "???";
@@ -132,13 +149,11 @@ export default function Reports({ orders, inventory }) {
 
     return (
         <div className="flex flex-col gap-6 pb-24 md:pb-0 animate-fade-in w-full max-w-full min-w-0 overflow-x-hidden">
-            {/* Header Title */}
             <div className="w-full">
                 <h2 className="text-2xl font-extrabold text-gray-800 tracking-tight">Pusat Laporan</h2>
                 <p className="text-sm text-gray-500 font-medium">Download dan cetak laporan keuangan toko</p>
             </div>
 
-            {/* Dark Summary Card - Perbaikan 2 Kolom di HP */}
             <div className="bg-slate-900 rounded-[24px] p-5 md:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-200 w-full min-w-0">
                 <div className="absolute top-4 right-4 opacity-5 pointer-events-none">
                     <BarChart2 size={100} strokeWidth={1} />
@@ -149,7 +164,6 @@ export default function Reports({ orders, inventory }) {
                 </p>
                 <h3 className="text-xl md:text-2xl font-bold mb-5 md:mb-6 text-slate-50 truncate">Ringkasan Periode</h3>
                 
-                {/* PERBAIKAN: grid-cols-2 untuk HP agar pas dan rapi */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 relative z-10 w-full min-w-0">
                     <div className="bg-slate-800 p-3 md:p-4 rounded-2xl border border-slate-700/50 min-w-0 w-full">
                         <div className="flex items-center gap-1.5 text-pink-400 mb-1.5 md:mb-2">
@@ -182,9 +196,7 @@ export default function Reports({ orders, inventory }) {
                 </div>
             </div>
 
-            {/* Action Cards Grid - Dibuat flex column di HP */}
             <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 print:hidden min-w-0 w-full">
-                {/* Laporan Transaksi */}
                 <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-gray-100 flex flex-col min-w-0 w-full">
                     <div className="flex items-center gap-3 mb-4 md:mb-6 min-w-0">
                         <div className="p-2.5 md:p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><FileText size={18} /></div>
@@ -227,7 +239,6 @@ export default function Reports({ orders, inventory }) {
                     </div>
                 </div>
 
-                {/* Laporan Stok & Aset */}
                 <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-gray-100 flex flex-col min-w-0 w-full">
                     <div className="flex items-center gap-3 mb-4 md:mb-6 min-w-0">
                         <div className="p-2.5 md:p-3 bg-emerald-50 text-emerald-600 rounded-xl shrink-0"><Package size={18} /></div>
@@ -249,10 +260,42 @@ export default function Reports({ orders, inventory }) {
                 </div>
             </div>
 
+            {/* FITUR BARU: Top 5 Barang Terlaris */}
+            {topSellingItems.length > 0 && (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-[24px] shadow-sm border border-amber-200 overflow-hidden w-full p-5 md:p-6 flex flex-col relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                        <Trophy size={100} />
+                    </div>
+                    <div className="flex items-center gap-3 mb-5 relative z-10">
+                        <div className="p-2 md:p-3 bg-amber-500 text-white rounded-xl shadow-md"><Star size={20} /></div>
+                        <div>
+                            <h3 className="font-bold text-base md:text-lg text-amber-900">5 Barang Paling Laris</h3>
+                            <p className="text-[10px] md:text-xs text-amber-700/80 font-medium">Berdasarkan data {isAllData ? 'seluruh waktu' : 'bulan ini'}</p>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 relative z-10">
+                        {topSellingItems.map((item, idx) => (
+                            <div key={idx} className="bg-white p-3 md:p-4 rounded-xl border border-amber-100 shadow-sm flex flex-col h-full hover:-translate-y-1 transition-transform cursor-default">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${idx === 0 ? 'bg-yellow-400 text-yellow-900 shadow-md' : idx === 1 ? 'bg-gray-300 text-gray-800' : idx === 2 ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-500'}`}>#{idx + 1}</span>
+                                </div>
+                                <h4 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight flex-1 mb-2" title={item.name}>{item.name}</h4>
+                                <div className="mt-auto">
+                                    <div className="text-[10px] text-gray-400 font-medium">Terjual</div>
+                                    <div className="font-black text-amber-600 text-lg">{item.qty} <span className="text-[10px] font-medium text-amber-500 uppercase">Unit</span></div>
+                                    <div className="text-[9px] md:text-[10px] font-bold text-gray-500 mt-1 pt-1 border-t border-gray-100">Omzet: {formatCurrency(item.revenue)}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Table Preview */}
-            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden w-full min-w-0 flex flex-col">
+            <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden w-full min-w-0 flex flex-col mt-2">
                 <div className="p-4 md:p-5 border-b border-gray-50 flex justify-between items-center bg-white min-w-0 w-full">
-                    <h3 className="font-bold text-sm md:text-base text-gray-800 truncate flex-1">Preview ({isAllData ? 'Semua Data' : 'Bulan Ini'})</h3>
+                    <h3 className="font-bold text-sm md:text-base text-gray-800 truncate flex-1">Preview Transaksi ({isAllData ? 'Semua Data' : 'Bulan Ini'})</h3>
                     <span className="text-[9px] md:text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full shrink-0 ml-2">{filteredOrders.length} TRX</span>
                 </div>
 

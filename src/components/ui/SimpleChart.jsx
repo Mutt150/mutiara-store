@@ -25,12 +25,13 @@ export default function SimpleChart({ data }) {
     const maxValue = Math.max(...chartData.map(d => d.value), 100000);
 
     return (
-        <div className="h-48 flex items-end justify-between gap-2 pt-6">
+        <div className="h-56 flex items-end justify-between gap-2 pt-10">
             {chartData.map((d, i) => (
-                <div key={i} className="flex flex-col items-center gap-1 flex-1 group relative h-full justify-end">
-                    <div className="absolute -top-8 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                        {formatCurrency(d.value)}
+                <div key={i} className="flex flex-col items-center gap-1 flex-1 group relative h-full justify-end mt-4">
+                    <div className={`absolute -top-8 md:-top-9 ${d.value > 0 ? 'bg-white border border-pink-200 text-pink-600 shadow-sm' : 'bg-transparent text-gray-400'} text-[9px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg whitespace-nowrap z-10 transition-transform group-hover:-translate-y-1`}>
+                        {d.value > 0 ? formatCurrency(d.value) : 'Rp 0'}
                     </div>
+                    
                     <div className="w-full bg-pink-200 rounded-t-lg hover:bg-pink-500 transition-all duration-500 relative overflow-hidden min-h-[4px]" style={{ height: `${(d.value / maxValue) * 100}%` }}>
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-pink-300 opacity-50"></div>
                     </div>
