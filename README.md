@@ -10,7 +10,7 @@
 
 Aplikasi Point of Sale (POS) dan Sistem Manajemen Toko berbasis web yang dirancang khusus untuk kemudahan pemilik UMKM. Kelola kasir, stok gudang, laporan keuangan, hingga manajemen karyawan — semuanya dalam satu antarmuka yang modern, cepat, dan responsif.
 
-[Demo](#) · [Laporkan Bug](#) · [Request Fitur](#)
+[Demo](https://toko-mbg.web.app) · [Laporkan Bug](mailto:mutiara.shabrina250@gmail.com) · [Request Fitur](mailto:mutiara.shabrina250@gmail.com)
 
 </div>
 
