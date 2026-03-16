@@ -52,11 +52,23 @@ export default function Sidebar({ isSidebarOpen, isSidebarMini, setIsSidebarMini
                 <div className="h-10"></div> 
             </nav>
 
-            <div className={`p-4 border-t border-pink-50 shrink-0 bg-white ${isSidebarMini ? 'flex justify-center' : ''}`}>
+            <div className={`p-4 border-t border-pink-50 shrink-0 bg-white ${isSidebarMini ? 'flex flex-col items-center' : 'flex flex-col'}`}>
                 <button onClick={handleLogout} className={`flex items-center gap-3 w-full px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-all ${isSidebarMini ? 'justify-center' : ''}`} title="Keluar Aplikasi">
                     <LogOut size={20}/>
                     {!isSidebarMini && <span className="font-bold">Keluar</span>}
                 </button>
+                
+                {/* Teks Hak Cipta */}
+                {!isSidebarMini ? (
+                    <div className="mt-4 text-center">
+                        <p className="text-[10px] text-gray-400 font-medium">Hak Cipta &copy; 2026 Mutiara Store.</p>
+                        <p className="text-[10px] text-gray-400 font-medium">All rights reserved.</p>
+                    </div>
+                ) : (
+                    <div className="mt-4 text-center" title="Hak Cipta © 2026 Mutiara Store. All rights reserved.">
+                        <p className="text-[10px] text-gray-400 font-medium">&copy; '26</p>
+                    </div>
+                )}
             </div>
         </aside>
     );
