@@ -1,34 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Scan, Trash2, Camera, Calendar, Package, ChevronRight, Tag, DollarSign, PackagePlus, History, Edit, User, CheckCircle, ChevronDown } from 'lucide-react';
-
-// Fungsi helper disematkan langsung untuk menghindari error import
-const formatCurrency = (value) => {
-    if (!value) return 'Rp 0';
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
-};
-
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dateString));
-};
-
-// Komponen simulasi CameraScanner disematkan langsung
-const CameraScanner = ({ onScanSuccess, onClose }) => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="bg-white rounded-[32px] p-6 w-full max-w-sm flex flex-col items-center gap-4 relative">
-            <button onClick={onClose} className="absolute right-5 top-5 text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
-            <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mt-4 mb-2"><Camera size={32}/></div>
-            <h3 className="font-bold text-gray-800 text-lg">Simulasi Scanner Kamera</h3>
-            <p className="text-gray-500 text-sm text-center mb-4">Fitur kamera disimulasikan agar dapat berjalan. Klik tombol di bawah untuk menjalankan simulasi scan barcode.</p>
-            <button onClick={() => { onScanSuccess("899" + Math.floor(100000 + Math.random() * 900000)); onClose(); }} className="w-full bg-pink-600 text-white font-bold py-3.5 rounded-xl hover:bg-pink-700 transition-colors shadow-lg shadow-pink-200">
-                Simulasi Scan Berhasil
-            </button>
-        </div>
-    </div>
-);
+import { formatCurrency, formatDate } from '../utils/helpers.js';
+import CameraScanner from '../components/ui/CameraScanner.jsx';
 
 export default function Inventory({ inventory, restockLogs, handlePurchase, setEditingRestock, handleDeleteRestock, handleDeleteInventoryItem }) {
     const [mainTab, setMainTab] = useState('restock');
+
+    // FUNGSI BARU: Mengambil waktu lokal saat ini (menyesuaikan Zona Waktu)
+    const getCurrentDateTime = () => {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        return new Date(now - tzOffset).toISOString().slice(0, 16);
+    };
 
     // ================= STATES UNTUK LIST STOK =================
     const [searchStock, setSearchStock] = useState('');
@@ -55,7 +38,7 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
     // ================= STATES UNTUK RESTOCK =================
     const [form, setForm] = useState({
         itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', 
-        unit: 'pcs', supplier: '', date: new Date().toISOString().slice(0, 16),
+        unit: 'pcs', supplier: '', date: getCurrentDateTime(),
         barcode: '', category: 'Umum', sellPrice: ''
     });
     const [mode, setMode] = useState('existing');
@@ -125,7 +108,7 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
             return;
         }
         handlePurchase(form);
-        setForm({ ...form, itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', barcode: '', existingId: null, sellPrice: '' });
+        setForm({ ...form, itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', barcode: '', existingId: null, sellPrice: '', date: getCurrentDateTime() });
     }
 
     const handleQtyChange = (val) => {
