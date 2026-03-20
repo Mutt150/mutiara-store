@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
+import { formatCurrency } from '../../utils/helpers';
 
 export default function EditRestockModal({ editingRestock, setEditingRestock, inventory, handleUpdateRestock }) {
     if (!editingRestock) return null;
@@ -9,7 +10,7 @@ export default function EditRestockModal({ editingRestock, setEditingRestock, in
         barcode: editingRestock.barcode || '',
         category: editingRestock.category || 'Umum',
         qty: editingRestock.qty || 0,
-        unit: editingRestock.unit || 'pcs',
+        unit: editingRestock.unit || 'pcs', // REVISI 3: Pastikan field unit ada
         pricePerUnit: editingRestock.pricePerUnit || 0,
         supplier: editingRestock.supplier || '',
         sellPrice: '',
@@ -57,15 +58,26 @@ export default function EditRestockModal({ editingRestock, setEditingRestock, in
                             <input className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} />
                         </div>
                     </div>
+                    
+                    {/* REVISI 3: Menambahkan input untuk field Unit di dalam grid */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-bold text-gray-500 ml-1">Jumlah</label>
-                            <input type="number" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold" value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
+                            <label className="text-xs font-bold text-gray-500 ml-1">Jumlah & Satuan</label>
+                            <div className="flex gap-2">
+                                <input type="number" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold" value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
+                                <input type="text" className="w-20 p-3 bg-gray-50 border border-gray-200 rounded-xl" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} placeholder="pcs" />
+                            </div>
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 ml-1">Harga Beli / Unit</label>
                             <input type="number" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={formData.pricePerUnit} onChange={e => setFormData({ ...formData, pricePerUnit: e.target.value })} />
                         </div>
+                    </div>
+
+                    {/* REVISI 3: Penambahan visual Total Modal otomatis */}
+                    <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
+                         <span className="text-xs font-bold text-blue-600">Total Modal Masuk:</span>
+                         <span className="font-bold text-blue-700 text-sm">{formatCurrency((parseFloat(formData.qty) || 0) * (parseFloat(formData.pricePerUnit) || 0))}</span>
                     </div>
 
                     <div>

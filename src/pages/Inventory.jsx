@@ -6,7 +6,6 @@ import CameraScanner from '../components/ui/CameraScanner.jsx';
 export default function Inventory({ inventory, restockLogs, handlePurchase, setEditingRestock, handleDeleteRestock, handleDeleteInventoryItem }) {
     const [mainTab, setMainTab] = useState('restock');
 
-    // FUNGSI BARU: Mengambil waktu lokal saat ini (menyesuaikan Zona Waktu)
     const getCurrentDateTime = () => {
         const now = new Date();
         const tzOffset = now.getTimezoneOffset() * 60000;
@@ -17,6 +16,7 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
     const [searchStock, setSearchStock] = useState('');
     const [sortStock, setSortStock] = useState('newest');
 
+    // --- REVISI 5: Perbaikan Fitur Filter Terbaru ---
     const sortedInventory = useMemo(() => {
         if (!inventory) return [];
         let filtered = inventory.filter(i => 
@@ -31,7 +31,13 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
             case 'stock_desc': return filtered.sort((a, b) => b.stock - a.stock);
             case 'newest': 
             default: 
-                return [...filtered].reverse(); 
+                // Mengurutkan berdasarkan waktu pembuatan (createdAt / updatedAt) yang telah ditambahkan di App.jsx
+                return [...filtered].sort((a, b) => {
+                    const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
+                    const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+                    if (timeA === 0 && timeB === 0) return a.name.localeCompare(b.name); // Fallback jika item lama tidak memiliki timestamp
+                    return timeB - timeA; // Descending (Terbaru di atas)
+                });
         }
     }, [inventory, searchStock, sortStock]);
 
@@ -47,17 +53,14 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
     const [barcodeBuffer, setBarcodeBuffer] = useState('');
     const [scanSuccessUI, setScanSuccessUI] = useState(false);
     
-    // Fitur Pencarian Dropdown Barang Lama
     const [showItemDropdown, setShowItemDropdown] = useState(false);
     const [itemSearchQuery, setItemSearchQuery] = useState('');
     
-    // REVISI: Menaikkan limit default penampilan Riwayat Masuk menjadi 15
     const [visibleHistory, setVisibleHistory] = useState(15);
     
     const quantityInputRef = useRef(null);
     const barcodeInputRef = useRef(null);
 
-    // Filter Riwayat
     const [searchHistory, setSearchHistory] = useState('');
     const [sortHistory, setSortHistory] = useState('newest');
 
@@ -102,7 +105,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
 
     const submitRestock = (e) => {
         e.preventDefault();
-        // Validasi ekstra jika mode existing tapi belum pilih barang
         if (mode === 'existing' && !form.existingId) {
             alert('Mohon pilih barang dari gudang terlebih dahulu.');
             return;
@@ -111,26 +113,50 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
         setForm({ ...form, itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', barcode: '', existingId: null, sellPrice: '', date: getCurrentDateTime() });
     }
 
+    // --- REVISI 4: Auto-Calculate Lebih Pintar (Jumlah, Harga Satuan, Total Harga Beli) ---
     const handleQtyChange = (val) => {
         const newQty = val;
-        const unitPrice = parseFloat(form.pricePerUnit) || 0;
-        const newTotal = newQty && unitPrice ? (parseFloat(newQty) * unitPrice).toString() : form.totalPrice;
-        setForm({ ...form, quantity: newQty, totalPrice: newTotal });
+        const unitPrice = parseFloat(form.pricePerUnit);
+        const totalP = parseFloat(form.totalPrice);
+
+        let newTotal = form.totalPrice;
+        let newUnit = form.pricePerUnit;
+
+        if (newQty) {
+            if (totalP && !unitPrice) {
+                // Jika User menginput Total Harga terlebih dahulu, otomatis isi Harga Satuan
+                newUnit = (totalP / parseFloat(newQty)).toString();
+            } else if (unitPrice) {
+                // Perilaku normal (Qty x Satuan = Total)
+                newTotal = (parseFloat(newQty) * unitPrice).toString();
+            }
+        }
+        setForm({ ...form, quantity: newQty, totalPrice: newTotal, pricePerUnit: newUnit });
     };
 
     const handleUnitPriceChange = (val) => {
         const newPrice = val;
-        const qty = parseFloat(form.quantity) || 0;
-        const newTotal = qty && newPrice ? (qty * parseFloat(newPrice)).toString() : '';
+        const qty = parseFloat(form.quantity);
+        let newTotal = form.totalPrice;
+
+        if (newPrice && qty) {
+            newTotal = (qty * parseFloat(newPrice)).toString();
+        }
         setForm({ ...form, pricePerUnit: newPrice, totalPrice: newTotal });
     };
 
     const handleTotalPriceChange = (val) => {
         const newTotal = val;
-        const qty = parseFloat(form.quantity) || 0;
-        const newUnitPrice = qty > 0 && newTotal ? (parseFloat(newTotal) / qty).toString() : '';
-        setForm({ ...form, totalPrice: newTotal, pricePerUnit: newUnitPrice });
+        const qty = parseFloat(form.quantity);
+        let newUnit = form.pricePerUnit;
+
+        if (newTotal && qty) {
+            // Jika User merubah Total Harga dan Qty sudah ada, otomatis cari harga satuan
+            newUnit = (parseFloat(newTotal) / qty).toString();
+        }
+        setForm({ ...form, totalPrice: newTotal, pricePerUnit: newUnit });
     };
+    // ---------------------------------------------------------------------------------
 
     const filteredLogs = useMemo(() => {
         if (!restockLogs) return [];
@@ -153,7 +179,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
         return logs;
     }, [restockLogs, searchHistory, sortHistory]);
 
-    // LOGIK: Menghitung baris kosong (filler rows) agar tabel selalu terlihat penuh/rapi
     const displayLogs = filteredLogs.slice(0, visibleHistory);
     const fillerRowsCount = Math.max(0, 8 - displayLogs.length);
 
@@ -232,7 +257,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
             {/* ================= TAB: RESTOCK BARANG (Layout Vertikal) ================= */}
             {mainTab === 'restock' && (
                 <div className="flex flex-col gap-6 animate-fade-in w-full min-w-0">
-                    {/* BAGIAN ATAS: FORM MASUK (Full Width) */}
                     <div className="w-full">
                         <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-pink-100 w-full min-w-0">
                             <div className="flex justify-between items-center mb-6">
@@ -258,7 +282,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                                 </div>
                             )}
 
-                            {/* REVISI DESAIN TOMBOL SWITCH: Warna pink pastel elegan saat aktif (tidak terlalu terang seperti putih) */}
                             <div className="bg-gray-100 p-1.5 rounded-2xl mb-6 flex relative border border-gray-200/60 shadow-inner w-full">
                                 <button type="button" onClick={() => { setMode('existing'); setForm({ ...form, existingId: null, barcode: '' }); }} className={`flex-1 py-3 rounded-xl font-bold text-xs md:text-sm transition-all z-10 ${mode === 'existing' ? 'bg-pink-100 text-pink-700 shadow-sm border border-pink-200' : 'text-gray-500 hover:text-gray-700'}`}>Pilih Stok Lama</button>
                                 <button type="button" onClick={() => { setMode('new'); setForm({ ...form, existingId: null, barcode: '' }); }} className={`flex-1 py-3 rounded-xl font-bold text-xs md:text-sm transition-all z-10 ${mode === 'new' ? 'bg-pink-100 text-pink-700 shadow-sm border border-pink-200' : 'text-gray-500 hover:text-gray-700'}`}>Input Barang Baru</button>
@@ -274,7 +297,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                                     <div>
                                         <label className="text-[10px] md:text-xs font-bold text-gray-400 ml-1 mb-1.5 block uppercase tracking-wider">{mode === 'existing' ? 'Cari Barang Gudang' : 'Nama Barang Baru'}</label>
                                         {mode === 'existing' ? (
-                                            /* REVISI DROPDOWN: Dibuat custom agar bisa dicari/di-search */
                                             <div className="relative">
                                                 <div 
                                                     className="w-full p-3.5 md:p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-pink-300 focus-within:bg-white transition-all"
@@ -286,12 +308,9 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                                                     <ChevronDown size={18} className={`text-pink-400 shrink-0 transition-transform ${showItemDropdown ? 'rotate-180' : ''}`} />
                                                 </div>
 
-                                                {/* Dropdown Content & Overlay */}
                                                 {showItemDropdown && (
                                                     <>
-                                                        {/* Invisible overlay untuk mendeteksi klik di luar kotak dropdown */}
                                                         <div className="fixed inset-0 z-10" onClick={() => setShowItemDropdown(false)}></div>
-                                                        
                                                         <div className="absolute z-20 w-full mt-2 bg-white border border-pink-100 rounded-2xl shadow-xl max-h-64 flex flex-col overflow-hidden animate-fade-in">
                                                             <div className="p-3 border-b border-gray-50 bg-gray-50/50 sticky top-0">
                                                                 <div className="relative">
@@ -388,7 +407,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                         </div>
                     </div>
 
-                    {/* BAGIAN BAWAH: RIWAYAT MASUK (Full Width) */}
                     <div className="w-full">
                         <div className="bg-white rounded-[32px] shadow-sm border border-pink-100 flex flex-col min-w-0 w-full overflow-hidden">
                             <div className="p-5 md:p-8 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-5 border-b border-gray-50 shrink-0">
@@ -443,7 +461,6 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                                             </tr>
                                         ))}
 
-                                        {/* Filler rows agar tabel tidak terlihat nanggung/kosong di bawah */}
                                         {Array.from({ length: fillerRowsCount }).map((_, idx) => (
                                             <tr key={`filler-${idx}`} className="hidden md:table-row border-transparent">
                                                 <td className="p-5 h-[76px]" colSpan="5"></td>

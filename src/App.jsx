@@ -57,6 +57,31 @@ export default function App() {
     const [withdrawals, setWithdrawals] = useState([]);
     const [recentActivities, setRecentActivities] = useState([]);
 
+    // --- REVISI 1: Handle Tombol Back (Kembali) di HP / Browser ---
+    useEffect(() => {
+        window.history.replaceState({ tab: 'dashboard' }, '', '?tab=dashboard');
+
+        const handlePopState = (event) => {
+            if (event.state && event.state.tab) {
+                setActiveTab(event.state.tab);
+            } else {
+                setActiveTab('dashboard');
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    const handleNavigateTab = (tabId) => {
+        if (tabId !== activeTab) {
+            window.history.pushState({ tab: tabId }, '', `?tab=${tabId}`);
+            setActiveTab(tabId);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+    // -------------------------------------------------------------
+
     useEffect(() => {
         const script = document.createElement("script");
         script.src = "https://unpkg.com/html5-qrcode";
@@ -132,7 +157,7 @@ export default function App() {
             try {
                 await signOut(auth);
                 localStorage.removeItem('connected_store_id');
-                setActiveTab('dashboard');
+                handleNavigateTab('dashboard');
             } catch (error) { alert("Logout Gagal: " + error.message); }
         }
     };
@@ -223,13 +248,16 @@ export default function App() {
                     lastSupplier: supplier || existingItem.lastSupplier || '', 
                     unit: unit || existingItem.unit,
                     category: category || existingItem.category || 'Umum',
-                    barcode: barcode || existingItem.barcode || ''
+                    barcode: barcode || existingItem.barcode || '',
+                    updatedAt: serverTimestamp() // REVISI 5: Simpan waktu update agar bisa diurutkan dari terbaru
                 });
             } else {
                 const newItemRef = await addDoc(getStoreCollection("inventory"), {
                     name: itemName.trim(), stock: qty, unit: unit || 'pcs', avgCost: price, lastPrice: price,
                     sellPrice: sellingPrice, minStock: 5, lastSupplier: supplier || '',
-                    category: category || 'Umum', barcode: barcode || ''
+                    category: category || 'Umum', barcode: barcode || '',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp() // REVISI 5: Simpan waktu pembuatan agar bisa diurutkan dari terbaru
                 });
                 itemIdForLog = newItemRef.id;
             }
@@ -271,7 +299,8 @@ export default function App() {
                 batch.update(itemRef, {
                     name: newData.itemName, barcode: newData.barcode, category: newData.category,
                     lastSupplier: newData.supplier, stock: newStock, avgCost: newAvgCost, unit: newData.unit,
-                    sellPrice: parseFloat(newData.sellPrice) || currentItem.sellPrice || 0
+                    sellPrice: parseFloat(newData.sellPrice) || currentItem.sellPrice || 0,
+                    updatedAt: serverTimestamp() // REVISI 5: Update waktu
                 });
             }
             await batch.commit();
@@ -293,8 +322,8 @@ export default function App() {
                 if (newStock <= 0) {
                     if (window.confirm("Penghapusan ini membuat stok barang habis (0). Hapus permanen barang ini dari list Gudang sekalian?")) {
                         await deleteDoc(itemRef);
-                    } else await updateDoc(itemRef, { stock: 0 });
-                } else await updateDoc(itemRef, { stock: newStock });
+                    } else await updateDoc(itemRef, { stock: 0, updatedAt: serverTimestamp() });
+                } else await updateDoc(itemRef, { stock: newStock, updatedAt: serverTimestamp() });
             }
             await deleteDoc(getStoreDoc("restock_logs", log.id));
             await logActivity("Hapus Restock", `Menghapus riwayat masuk ${log.itemName} (${log.qty} ${log.unit}).`);
@@ -324,7 +353,7 @@ export default function App() {
                 if (!inventoryItem) throw new Error(`Barang ${item.itemName} tidak ditemukan!`);
 
                 const itemRef = getStoreDoc("inventory", item.itemId);
-                batch.update(itemRef, { stock: inventoryItem.stock - item.quantity });
+                batch.update(itemRef, { stock: inventoryItem.stock - item.quantity, updatedAt: serverTimestamp() });
                 totalRevenue += item.subtotal;
                 totalCOGS += (inventoryItem.avgCost * item.quantity);
             }
@@ -359,7 +388,7 @@ export default function App() {
             for (const oldItem of originalOrder.items) {
                 const itemRef = getStoreDoc("inventory", oldItem.itemId);
                 const currentInv = inventory.find(i => i.id === oldItem.itemId);
-                if (currentInv) batch.update(itemRef, { stock: currentInv.stock + oldItem.qty });
+                if (currentInv) batch.update(itemRef, { stock: currentInv.stock + oldItem.qty, updatedAt: serverTimestamp() });
             }
 
             let newRevenue = 0; let newCOGS = 0;
@@ -372,7 +401,7 @@ export default function App() {
                 const currentAvgCost = inventory.find(i => i.id === newItem.itemId)?.avgCost || 0;
                 if (tempStockMap[newItem.itemId] < newItem.qty) throw new Error(`Stok ${newItem.name} kurang!`);
                 tempStockMap[newItem.itemId] -= newItem.qty;
-                batch.update(itemRef, { stock: tempStockMap[newItem.itemId] });
+                batch.update(itemRef, { stock: tempStockMap[newItem.itemId], updatedAt: serverTimestamp() });
                 newRevenue += newItem.subtotal;
                 newCOGS += (currentAvgCost * newItem.qty);
             }
@@ -428,7 +457,7 @@ export default function App() {
             for (const item of order.items) {
                 const itemRef = getStoreDoc("inventory", item.itemId);
                 const itemSnap = await getDoc(itemRef);
-                if (itemSnap.exists()) batch.update(itemRef, { stock: itemSnap.data().stock + item.qty });
+                if (itemSnap.exists()) batch.update(itemRef, { stock: itemSnap.data().stock + item.qty, updatedAt: serverTimestamp() });
             }
             batch.delete(getStoreDoc("orders", order.id));
             await batch.commit();
@@ -511,7 +540,7 @@ export default function App() {
                 isSidebarMini={isSidebarMini}
                 setIsSidebarMini={setIsSidebarMini}
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleNavigateTab}
                 setIsSidebarOpenState={setIsSidebarOpen}
                 handleLogout={handleLogout}
                 navItems={navItems}
@@ -519,7 +548,6 @@ export default function App() {
 
             {isSidebarOpen && <div className="fixed inset-0 bg-black/20 z-40 md:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />}
 
-            {/* PERBAIKAN: Menambahkan min-w-0 agar elemen didalamnya tidak bisa mendesak halaman menjadi melar (Overflow) */}
             <main className={`flex-1 min-w-0 w-full transition-all duration-300 print:ml-0 print:w-full print:p-0 ${isSidebarMini ? 'md:ml-20' : 'md:ml-80'}`}>
                 <div className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-pink-50 px-6 py-4 flex justify-between items-center print:hidden shadow-sm">
                     <div className="font-bold text-lg text-gray-800 flex items-center gap-2"><ShoppingBasket className="text-pink-600" /> Mutiara Store</div>
@@ -532,7 +560,7 @@ export default function App() {
                             user={user} storeProfile={storeProfile} activeStoreId={activeStoreId}
                             stats={stats} orders={orders} recentActivities={recentActivities} 
                             setShowStoreModal={setShowStoreModal} setShowProfileEdit={setShowProfileEdit} 
-                            setShowWithdraw={setShowWithdraw} setActiveTab={setActiveTab}
+                            setShowWithdraw={setShowWithdraw} setActiveTab={handleNavigateTab}
                         />
                     )}
                     {activeTab === 'sales' && (
@@ -572,9 +600,9 @@ export default function App() {
 
             {/* MOBILE BOTTOM NAVIGATION */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 flex justify-around z-40 pb-safe print:hidden shadow-[0_-5px_10px_rgba(0,0,0,0.02)]">
-                <button onClick={() => setActiveTab('dashboard')} className={`p-3 rounded-2xl transition-all ${activeTab === 'dashboard' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><LayoutDashboard size={24} /></button>
-                <button onClick={() => setActiveTab('sales')} className={`p-3 rounded-2xl transition-all ${activeTab === 'sales' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 -translate-y-2' : 'text-gray-400'}`}><Plus size={28} /></button>
-                <button onClick={() => setActiveTab('history')} className={`p-3 rounded-2xl transition-all ${activeTab === 'history' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><HistoryIcon size={24} /></button>
+                <button onClick={() => handleNavigateTab('dashboard')} className={`p-3 rounded-2xl transition-all ${activeTab === 'dashboard' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><LayoutDashboard size={24} /></button>
+                <button onClick={() => handleNavigateTab('sales')} className={`p-3 rounded-2xl transition-all ${activeTab === 'sales' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 -translate-y-2' : 'text-gray-400'}`}><Plus size={28} /></button>
+                <button onClick={() => handleNavigateTab('history')} className={`p-3 rounded-2xl transition-all ${activeTab === 'history' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><HistoryIcon size={24} /></button>
             </div>
 
             {/* RENDER MODALS */}
