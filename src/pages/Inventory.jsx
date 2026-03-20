@@ -1,7 +1,40 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, Scan, Trash2, Camera, Calendar, Package, ChevronRight, Tag, DollarSign, PackagePlus, History, Edit, User, CheckCircle, ChevronDown } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers.js';
-import CameraScanner from '../components/ui/CameraScanner.jsx';
+import { 
+    Search, Scan, Trash2, Camera, Calendar, Package, ChevronRight, Tag, DollarSign, 
+    PackagePlus, History, Edit, User, CheckCircle, ChevronDown,
+    Bot, Sparkles, X, Image as ImageIcon, RefreshCw, Key,
+    Plus, AlertTriangle, FileText, Archive, Truck, ArrowUpDown 
+} from 'lucide-react';
+
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
+};
+
+const formatDate = (timestamp) => {
+    if (!timestamp) return '-';
+    let date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
+};
+
+const CameraScanner = ({ onScanSuccess, onClose }) => {
+    return (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white p-6 rounded-3xl w-full max-w-sm flex flex-col gap-4 text-center animate-fade-in">
+                <div className="mx-auto bg-blue-50 text-blue-500 p-4 rounded-full">
+                    <Camera size={32} />
+                </div>
+                <h3 className="font-bold text-xl text-gray-800">Scanner Kamera</h3>
+                <p className="text-sm text-gray-500 mb-2">Simulasi scanner barcode untuk lingkungan pratinjau.</p>
+                <button onClick={() => { onScanSuccess('8999999123456'); onClose(); }} className="bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors">
+                    Simulasikan Scan Berhasil
+                </button>
+                <button onClick={onClose} className="bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">
+                    Tutup Kamera
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export default function Inventory({ inventory, restockLogs, handlePurchase, setEditingRestock, handleDeleteRestock, handleDeleteInventoryItem }) {
     const [mainTab, setMainTab] = useState('restock');
@@ -12,11 +45,9 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
         return new Date(now - tzOffset).toISOString().slice(0, 16);
     };
 
-    // ================= STATES UNTUK LIST STOK =================
     const [searchStock, setSearchStock] = useState('');
     const [sortStock, setSortStock] = useState('newest');
 
-    // --- REVISI 5: Perbaikan Fitur Filter Terbaru ---
     const sortedInventory = useMemo(() => {
         if (!inventory) return [];
         let filtered = inventory.filter(i => 
@@ -31,21 +62,19 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
             case 'stock_desc': return filtered.sort((a, b) => b.stock - a.stock);
             case 'newest': 
             default: 
-                // Mengurutkan berdasarkan waktu pembuatan (createdAt / updatedAt) yang telah ditambahkan di App.jsx
                 return [...filtered].sort((a, b) => {
                     const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
                     const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
-                    if (timeA === 0 && timeB === 0) return a.name.localeCompare(b.name); // Fallback jika item lama tidak memiliki timestamp
-                    return timeB - timeA; // Descending (Terbaru di atas)
+                    if (timeA === 0 && timeB === 0) return a.name.localeCompare(b.name); 
+                    return timeB - timeA; 
                 });
         }
     }, [inventory, searchStock, sortStock]);
 
-    // ================= STATES UNTUK RESTOCK =================
     const [form, setForm] = useState({
         itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', 
         unit: 'pcs', supplier: '', date: getCurrentDateTime(),
-        barcode: '', category: 'Umum', sellPrice: ''
+        barcode: '', category: 'Umum', sellPrice: '', scanIndex: undefined
     });
     const [mode, setMode] = useState('existing');
     const [showCamera, setShowCamera] = useState(false);
@@ -63,6 +92,21 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
 
     const [searchHistory, setSearchHistory] = useState('');
     const [sortHistory, setSortHistory] = useState('newest');
+
+    const [showScannerModal, setShowScannerModal] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null); 
+    const [imageBase64, setImageBase64] = useState(''); 
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanResults, setScanResults] = useState([]);
+    const [processedIndices, setProcessedIndices] = useState([]); 
+    const [scannerError, setScannerError] = useState('');
+    const [customApiKey, setCustomApiKey] = useState('');
+    const [showKeyInput, setShowKeyInput] = useState(false);
+
+    useEffect(() => {
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) setCustomApiKey(savedKey);
+    }, []);
 
     useEffect(() => {
         if (barcodeMode && barcodeInputRef.current && mainTab === 'restock') {
@@ -110,10 +154,14 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
             return;
         }
         handlePurchase(form);
-        setForm({ ...form, itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', barcode: '', existingId: null, sellPrice: '', date: getCurrentDateTime() });
+        
+        if (form.scanIndex !== undefined) {
+            setProcessedIndices(prev => [...prev, form.scanIndex]);
+        }
+
+        setForm({ ...form, itemName: '', quantity: '', pricePerUnit: '', totalPrice: '', barcode: '', existingId: null, sellPrice: '', date: getCurrentDateTime(), scanIndex: undefined });
     }
 
-    // --- REVISI 4: Auto-Calculate Lebih Pintar (Jumlah, Harga Satuan, Total Harga Beli) ---
     const handleQtyChange = (val) => {
         const newQty = val;
         const unitPrice = parseFloat(form.pricePerUnit);
@@ -124,10 +172,8 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
 
         if (newQty) {
             if (totalP && !unitPrice) {
-                // Jika User menginput Total Harga terlebih dahulu, otomatis isi Harga Satuan
                 newUnit = (totalP / parseFloat(newQty)).toString();
             } else if (unitPrice) {
-                // Perilaku normal (Qty x Satuan = Total)
                 newTotal = (parseFloat(newQty) * unitPrice).toString();
             }
         }
@@ -151,12 +197,164 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
         let newUnit = form.pricePerUnit;
 
         if (newTotal && qty) {
-            // Jika User merubah Total Harga dan Qty sudah ada, otomatis cari harga satuan
             newUnit = (parseFloat(newTotal) / qty).toString();
         }
         setForm({ ...form, totalPrice: newTotal, pricePerUnit: newUnit });
     };
-    // ---------------------------------------------------------------------------------
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setSelectedImage(URL.createObjectURL(file));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result.split(',')[1];
+            setImageBase64(base64String);
+            setScanResults([]); 
+            setProcessedIndices([]);
+            setScannerError('');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const analyzeReceipt = async () => {
+        if (!imageBase64) return;
+        setIsScanning(true);
+        setScannerError('');
+        
+        try {
+            let storedKey = localStorage.getItem('gemini_api_key');
+            let envKey = typeof import.meta.env !== 'undefined' ? import.meta.env.VITE_GEMINI_API_KEY : '';
+            let apiKeyToUse = storedKey || customApiKey || envKey;
+
+            if (!apiKeyToUse) {
+                setShowKeyInput(true);
+                throw new Error("API Key belum ditemukan.");
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKeyToUse}`;
+
+            const systemPrompt = `Kamu adalah sistem ekstraksi data OCR cerdas untuk nota belanja grosir.
+Tugasmu: Ekstrak daftar barang yang dibeli dari gambar nota ini.
+HANYA kembalikan format JSON murni, tanpa teks markdown atau backticks.
+Format Wajib:
+{
+  "items": [
+    { "itemName": "Nama Barang", "qty": 10, "pricePerUnit": 5000, "total": 50000 }
+  ]
+}
+Catatan: Jika ada nama barang yang terpotong/disingkat, perbaiki ejaannya secara logis. Abaikan total keseluruhan nota, fokus pada daftar per item.`;
+
+            const payload = {
+                contents: [
+                    {
+                        parts: [
+                            { text: systemPrompt },
+                            { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
+                        ]
+                    }
+                ],
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                const errMsg = responseData.error?.message || "Error server Google AI.";
+                if (errMsg.includes("API_KEY_INVALID")) {
+                    setShowKeyInput(true);
+                    throw new Error("Kunci API tidak valid.");
+                }
+                throw new Error(errMsg);
+            }
+
+            const textResponse = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!textResponse) throw new Error("AI tidak mengembalikan teks.");
+
+            const cleanTextResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanTextResponse);
+            
+            if (!parsed.items || !Array.isArray(parsed.items)) {
+                throw new Error("Format JSON AI tidak sesuai struktur.");
+            }
+
+            const processedItems = parsed.items.map(aiItem => {
+                const aiNameLower = aiItem.itemName.toLowerCase();
+                const aiWords = aiNameLower.split(/[\s-]+/).filter(w => w.length > 2); 
+
+                let matchedInventory = inventory.find(inv => {
+                    const invNameLower = inv.name.toLowerCase();
+                    
+                    if (invNameLower === aiNameLower || 
+                        invNameLower.includes(aiNameLower) || 
+                        aiNameLower.includes(invNameLower)) {
+                        return true;
+                    }
+
+                    const invWords = invNameLower.split(/[\s-]+/).filter(w => w.length > 2);
+                    const matchedWordsCount = aiWords.filter(w => invWords.includes(w)).length;
+                    if (matchedWordsCount >= 2) return true;
+                    
+                    return false;
+                });
+
+                return matchedInventory 
+                    ? { ...aiItem, status: 'matched', existingItem: matchedInventory } 
+                    : { ...aiItem, status: 'new', existingItem: null };
+            });
+
+            setScanResults(processedItems);
+            setShowKeyInput(false);
+
+        } catch (error) {
+            console.error("Scan Error:", error);
+            setScannerError(error.message);
+            if(error.message.includes("API Key") || error.message.includes("valid")) setShowKeyInput(true);
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
+    const handleProcessScanItem = (item, index) => {
+        setMode(item.status === 'matched' ? 'existing' : 'new');
+        
+        const qty = item.qty || '';
+        const price = item.pricePerUnit || '';
+        const total = (qty && price) ? (parseFloat(qty) * parseFloat(price)).toString() : '';
+
+        setForm(prev => ({
+            ...prev,
+            itemName: item.status === 'matched' ? item.existingItem.name : item.itemName,
+            quantity: qty,
+            unit: item.status === 'matched' ? item.existingItem.unit : 'pcs',
+            pricePerUnit: price,
+            totalPrice: total,
+            supplier: 'Grosir (AI Scan)', 
+            date: getCurrentDateTime(),
+            barcode: item.status === 'matched' ? (item.existingItem.barcode || '') : '',
+            category: item.status === 'matched' ? (item.existingItem.category || 'Umum') : 'Umum',
+            sellPrice: item.status === 'matched' ? (item.existingItem.sellPrice || item.existingItem.lastPrice || '') : '',
+            existingId: item.status === 'matched' ? item.existingItem.id : '',
+            scanIndex: index
+        }));
+        
+        setShowScannerModal(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    };
+
+    const handleSaveApiKey = () => {
+        if (!customApiKey.trim()) return alert("API Key tidak boleh kosong!");
+        localStorage.setItem('gemini_api_key', customApiKey.trim());
+        setShowKeyInput(false);
+        if (imageBase64) analyzeReceipt();
+    };
 
     const filteredLogs = useMemo(() => {
         if (!restockLogs) return [];
@@ -254,19 +452,30 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                 </div>
             )}
 
-            {/* ================= TAB: RESTOCK BARANG (Layout Vertikal) ================= */}
+            {/* ================= TAB: RESTOCK BARANG ================= */}
             {mainTab === 'restock' && (
                 <div className="flex flex-col gap-6 animate-fade-in w-full min-w-0">
                     <div className="w-full">
-                        <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-pink-100 w-full min-w-0">
-                            <div className="flex justify-between items-center mb-6">
+                        <div className="bg-white p-4 md:p-8 rounded-[32px] shadow-sm border border-pink-100 w-full min-w-0">
+                            
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <h3 className="font-bold text-base md:text-lg text-gray-800 flex items-center gap-2">
                                     <div className="bg-pink-50 text-pink-600 p-2.5 rounded-xl"><PackagePlus size={20}/></div> 
                                     Form Masuk Barang
                                 </h3>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setShowCamera(true)} className="p-2.5 md:p-3 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-600 hover:text-white transition-colors" title="Scan pakai HP"><Camera size={18}/></button>
-                                    <button onClick={() => setBarcodeMode(!barcodeMode)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${barcodeMode ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`} title="Alat Scanner USB"><Scan size={18}/></button>
+                                
+                                <div className="grid grid-cols-3 md:flex md:flex-row gap-2 w-full md:w-auto">
+                                    <button onClick={() => setShowScannerModal(true)} className="p-2 md:px-4 md:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 text-[10px] md:text-sm font-bold border border-purple-400" title="Scan Nota (AI)">
+                                        <Sparkles size={18}/> <span>Nota AI</span>
+                                    </button>
+                                    
+                                    <button onClick={() => setShowCamera(true)} className="p-2 md:p-3 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-600 hover:text-white transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 text-[10px] md:text-sm font-bold" title="Scan Barcode HP">
+                                        <Camera size={18}/> <span>Kamera</span>
+                                    </button>
+
+                                    <button onClick={() => setBarcodeMode(!barcodeMode)} className={`p-2 md:p-3 rounded-xl border transition-colors flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 text-[10px] md:text-sm font-bold ${barcodeMode ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`} title="Alat Scanner USB">
+                                        <Scan size={18}/> <span>Alat USB</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -279,6 +488,17 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                                             <CheckCircle size={32} className="animate-bounce"/><span>Terdeteksi!</span>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {form.scanIndex !== undefined && (
+                                <div className="bg-purple-50 border border-purple-100 p-4 rounded-2xl mb-6 flex gap-3 items-start animate-fade-in">
+                                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg shrink-0 mt-0.5"><Bot size={18}/></div>
+                                    <div>
+                                        <p className="text-sm font-bold text-purple-800">Review Data dari AI Scanner</p>
+                                        <p className="text-xs text-purple-600 mt-1">Data di bawah otomatis diisi dari nota. Silakan periksa kembali dan lengkapi sebelum menyimpan.</p>
+                                    </div>
+                                    <button onClick={() => setForm({ ...form, scanIndex: undefined })} className="ml-auto text-purple-400 hover:text-purple-600" title="Batal Review"><X size={16}/></button>
                                 </div>
                             )}
 
@@ -497,7 +717,153 @@ export default function Inventory({ inventory, restockLogs, handlePurchase, setE
                     </div>
                 </div>
             )}
+            
             {showCamera && <CameraScanner onScanSuccess={processBarcodeRestock} onClose={() => setShowCamera(false)} />}
+
+            {/* ✨ MODAL SCANNER NOTA AI ✨ */}
+            {showScannerModal && (
+                <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-[32px] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-fade-in border border-purple-100">
+                        
+                        <div className="p-5 md:p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-purple-100 text-purple-600 rounded-xl"><Bot size={24} /></div>
+                                <div>
+                                    <h2 className="text-lg md:text-xl font-bold text-gray-800">Auto-Restock AI</h2>
+                                    <p className="text-[10px] md:text-xs text-gray-500">Scan nota belanja, biarkan AI yang membaca.</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowScannerModal(false)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/50 custom-scrollbar">
+                            <div className="flex flex-col md:flex-row gap-6 h-full">
+                                
+                                {/* KIRI: Area Upload Gambar */}
+                                <div className="w-full md:w-5/12 flex flex-col gap-4">
+                                    <label className={`w-full aspect-[3/4] border-2 border-dashed rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${selectedImage ? 'border-purple-300 bg-purple-50/30 shadow-inner' : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50 bg-white'}`}>
+                                        {selectedImage ? (
+                                            <div className="relative w-full h-full p-2 group">
+                                                <img src={selectedImage} alt="Nota" className="w-full h-full object-contain rounded-2xl" />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl m-2">
+                                                    <span className="text-white font-bold text-sm flex items-center gap-2 bg-black/40 px-4 py-2 rounded-xl backdrop-blur-md"><Camera size={16}/> Ganti Foto</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-3 text-gray-400 p-6 text-center">
+                                                <div className="p-5 bg-gray-100 rounded-full shadow-sm"><ImageIcon size={32} className="text-gray-500"/></div>
+                                                <span className="text-sm font-bold text-gray-600">Ambil Foto Nota</span>
+                                                <span className="text-xs">Ketuk untuk buka galeri/kamera</span>
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageChange} />
+                                    </label>
+                                    
+                                    <button 
+                                        onClick={analyzeReceipt} 
+                                        disabled={!imageBase64 || isScanning}
+                                        className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:active:scale-100 text-sm md:text-base"
+                                    >
+                                        {isScanning ? <RefreshCw size={20} className="animate-spin" /> : <Sparkles size={20} />}
+                                        {isScanning ? 'Membaca Nota...' : 'Ekstrak dengan AI'}
+                                    </button>
+
+                                    {/* Input API Key darurat jika error */}
+                                    {showKeyInput && (
+                                        <div className="bg-white p-4 rounded-2xl flex flex-col gap-3 border border-purple-200 shadow-sm animate-fade-in">
+                                            <div className="flex items-center gap-2 text-purple-700">
+                                                <Key size={16}/><p className="text-xs font-bold">API Key Dibutuhkan:</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input type="password" value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} placeholder="AIzaSy..." className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100" />
+                                                <button onClick={handleSaveApiKey} className="bg-purple-600 text-white px-4 rounded-xl text-xs font-bold hover:bg-purple-700 transition-colors">Simpan</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {scannerError && (
+                                        <div className="flex items-start gap-2 bg-red-50 p-3 rounded-2xl border border-red-100 text-red-600 animate-fade-in">
+                                            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                                            <p className="text-xs font-medium leading-relaxed">{scannerError}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* KANAN: Area Meja Review (Staging) */}
+                                <div className="w-full md:w-7/12 flex flex-col h-full bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm">
+                                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
+                                        <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm md:text-base">
+                                            <FileText size={18} className="text-purple-600"/> Meja Review AI 
+                                        </h3>
+                                        {scanResults.filter(s => !s.ignored).length > 0 && <span className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-bold">{scanResults.filter(s => !s.ignored).length} Terdeteksi</span>}
+                                    </div>
+                                    
+                                    <div className="flex-1 overflow-y-auto p-3 md:p-4 custom-scrollbar bg-white min-h-[300px]">
+                                        {scanResults.filter(s => !s.ignored).length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center gap-4 opacity-60">
+                                                <div className="p-4 bg-gray-100 rounded-full"><Bot size={40} className="text-gray-400"/></div>
+                                                <p className="text-sm font-medium leading-relaxed max-w-xs">Hasil scan nota akan muncul di sini.<br/>AI akan otomatis mencocokkannya dengan stok gudangmu.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {scanResults.map((item, idx) => {
+                                                    // Jika sudah dihapus secara soft (ignored), tidak perlu di-render
+                                                    if (item.ignored) return null;
+
+                                                    const isProcessed = processedIndices.includes(idx);
+                                                    return (
+                                                        <div key={idx} className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${isProcessed ? 'bg-gray-50 border-gray-100 opacity-50 grayscale-[50%]' : item.status === 'matched' ? 'bg-emerald-50/30 border-emerald-100 hover:border-emerald-300 hover:shadow-sm' : 'bg-yellow-50/30 border-yellow-100 hover:border-yellow-300 hover:shadow-sm'}`}>
+                                                            <div className="flex-1 min-w-0 w-full">
+                                                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                                                    <p className={`font-bold text-sm md:text-base truncate max-w-full ${isProcessed ? 'text-gray-500 line-through' : 'text-gray-800'}`} title={item.itemName}>{item.itemName}</p>
+                                                                    {!isProcessed && (
+                                                                        item.status === 'matched' 
+                                                                        ? <span className="bg-emerald-100 text-emerald-700 text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0"><CheckCircle size={10}/> Stok Lama</span>
+                                                                        : <span className="bg-yellow-100 text-yellow-700 text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0"><Plus size={10}/> Barang Baru</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                                                                    <span className="bg-white px-2 py-1 rounded border border-gray-100">Qty: <strong className="text-gray-700">{item.qty}</strong></span>
+                                                                    <span className="bg-white px-2 py-1 rounded border border-gray-100">Satuan: <strong className="text-gray-700">{formatCurrency(item.pricePerUnit)}</strong></span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Tombol Aksi Kanan */}
+                                                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0 shrink-0">
+                                                                {!isProcessed && (
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            if(window.confirm(`Abaikan "${item.itemName}" dari daftar ini?`)) {
+                                                                                const newRes = [...scanResults];
+                                                                                newRes[idx].ignored = true;
+                                                                                setScanResults(newRes);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full sm:w-auto p-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-100 transition-all border border-red-100"
+                                                                        title="Hapus / Abaikan Barang"
+                                                                    >
+                                                                        <Trash2 size={16}/>
+                                                                    </button>
+                                                                )}
+                                                                <button 
+                                                                    onClick={() => handleProcessScanItem(item, idx)}
+                                                                    disabled={isProcessed}
+                                                                    className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-1.5 transition-all ${isProcessed ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-200 active:scale-95'}`}
+                                                                >
+                                                                    {isProcessed ? <><CheckCircle size={16}/> Selesai</> : <><ChevronRight size={16}/> Isi Form</>}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

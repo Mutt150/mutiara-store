@@ -20,6 +20,7 @@ import History from './pages/History';
 import Inventory from './pages/Inventory';
 import Reports from './pages/Reports';
 import ActivityLog from './pages/ActivityLog'; 
+import ChatbotPage from './pages/ChatbotPage';
 
 import Sidebar from './components/layout/Sidebar';
 import ReceiptTemplate from './components/ui/ReceiptTemplate';
@@ -30,7 +31,7 @@ import EditOrderModal from './components/modals/EditOrderModal';
 import UserProfileModal from './components/modals/UserProfileModal';
 import ConnectStoreModal from './components/modals/ConnectStoreModal';
 
-import { LayoutDashboard, ShoppingCart, Package, Wallet, FileText, History as HistoryIcon, Menu, Plus, ShoppingBasket, Activity } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Wallet, FileText, History as HistoryIcon, Menu, Plus, ShoppingBasket, Activity, Bot } from 'lucide-react';
 
 export default function App() {
     const [user, setUser] = useState(null);
@@ -249,7 +250,7 @@ export default function App() {
                     unit: unit || existingItem.unit,
                     category: category || existingItem.category || 'Umum',
                     barcode: barcode || existingItem.barcode || '',
-                    updatedAt: serverTimestamp() // REVISI 5: Simpan waktu update agar bisa diurutkan dari terbaru
+                    updatedAt: serverTimestamp() 
                 });
             } else {
                 const newItemRef = await addDoc(getStoreCollection("inventory"), {
@@ -257,7 +258,7 @@ export default function App() {
                     sellPrice: sellingPrice, minStock: 5, lastSupplier: supplier || '',
                     category: category || 'Umum', barcode: barcode || '',
                     createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp() // REVISI 5: Simpan waktu pembuatan agar bisa diurutkan dari terbaru
+                    updatedAt: serverTimestamp() 
                 });
                 itemIdForLog = newItemRef.id;
             }
@@ -300,7 +301,7 @@ export default function App() {
                     name: newData.itemName, barcode: newData.barcode, category: newData.category,
                     lastSupplier: newData.supplier, stock: newStock, avgCost: newAvgCost, unit: newData.unit,
                     sellPrice: parseFloat(newData.sellPrice) || currentItem.sellPrice || 0,
-                    updatedAt: serverTimestamp() // REVISI 5: Update waktu
+                    updatedAt: serverTimestamp() 
                 });
             }
             await batch.commit();
@@ -518,6 +519,7 @@ export default function App() {
         main: [
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'sales', label: 'Kasir (Jual)', icon: ShoppingCart },
+            { id: 'chatbot', label: 'Mutiara AI', icon: Bot },
             { id: 'expenses', label: 'Biaya & Ops', icon: Wallet },
             { id: 'history', label: 'Riwayat Nota', icon: HistoryIcon },
         ],
@@ -561,6 +563,7 @@ export default function App() {
                             stats={stats} orders={orders} recentActivities={recentActivities} 
                             setShowStoreModal={setShowStoreModal} setShowProfileEdit={setShowProfileEdit} 
                             setShowWithdraw={setShowWithdraw} setActiveTab={handleNavigateTab}
+                            inventory={inventory}
                         />
                     )}
                     {activeTab === 'sales' && (
@@ -593,12 +596,20 @@ export default function App() {
                     {activeTab === 'activity' && (
                         <ActivityLog activities={recentActivities} />
                     )}
+                    {activeTab === 'chatbot' && (
+                        <ChatbotPage
+                            stats={stats}
+                            orders={orders}
+                            inventory={inventory}
+                            storeProfile={storeProfile}
+                        />
+                    )}
                 </div>
 
                 {printOrder && <ReceiptTemplate order={printOrder} />}
             </main>
 
-            {/* MOBILE BOTTOM NAVIGATION */}
+            {/* MOBILE BOTTOM NAVIGATION - Dikembalikan ke Biaya & Ops */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-pink-50 px-2 py-1.5 flex justify-between items-end z-40 pb-safe print:hidden shadow-[0_-10px_20px_rgba(236,72,153,0.06)] rounded-t-3xl">
                 <button onClick={() => handleNavigateTab('dashboard')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'dashboard' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
                     <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'stroke-[2.5px]' : ''} />
@@ -622,6 +633,7 @@ export default function App() {
                     <span className="text-[9px] font-bold">Riwayat</span>
                 </button>
                 
+                {/* Dikembalikan ke Biaya & Ops seperti instruksi */}
                 <button onClick={() => handleNavigateTab('expenses')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'expenses' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
                     <Wallet size={22} className={activeTab === 'expenses' ? 'stroke-[2.5px]' : ''} />
                     <span className="text-[9px] font-bold">Biaya & Ops</span>
@@ -654,4 +666,3 @@ export default function App() {
         </div>
     );
 }
-
