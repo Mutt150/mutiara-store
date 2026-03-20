@@ -599,10 +599,33 @@ export default function App() {
             </main>
 
             {/* MOBILE BOTTOM NAVIGATION */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 flex justify-around z-40 pb-safe print:hidden shadow-[0_-5px_10px_rgba(0,0,0,0.02)]">
-                <button onClick={() => handleNavigateTab('dashboard')} className={`p-3 rounded-2xl transition-all ${activeTab === 'dashboard' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><LayoutDashboard size={24} /></button>
-                <button onClick={() => handleNavigateTab('sales')} className={`p-3 rounded-2xl transition-all ${activeTab === 'sales' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 -translate-y-2' : 'text-gray-400'}`}><Plus size={28} /></button>
-                <button onClick={() => handleNavigateTab('history')} className={`p-3 rounded-2xl transition-all ${activeTab === 'history' ? 'bg-pink-50 text-pink-600' : 'text-gray-400'}`}><HistoryIcon size={24} /></button>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-pink-50 px-2 py-1.5 flex justify-between items-end z-40 pb-safe print:hidden shadow-[0_-10px_20px_rgba(236,72,153,0.06)] rounded-t-3xl">
+                <button onClick={() => handleNavigateTab('dashboard')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'dashboard' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
+                    <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'stroke-[2.5px]' : ''} />
+                    <span className="text-[9px] font-bold">Beranda</span>
+                </button>
+                
+                <button onClick={() => handleNavigateTab('inventory')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'inventory' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
+                    <Package size={22} className={activeTab === 'inventory' ? 'stroke-[2.5px]' : ''} />
+                    <span className="text-[9px] font-bold">Stok Gudang</span>
+                </button>
+                
+                {/* Floating Center Button (Kasir) */}
+                <div className="relative flex-1 flex justify-center h-full">
+                    <button onClick={() => handleNavigateTab('sales')} className={`absolute bottom-3 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full border-[5px] border-white transition-all shadow-lg active:scale-95 ${activeTab === 'sales' ? 'bg-pink-600 text-white shadow-pink-200 scale-105' : 'bg-gray-800 text-white hover:bg-gray-700'}`}>
+                        <Plus size={28} className={activeTab === 'sales' ? 'stroke-[3px]' : ''} />
+                    </button>
+                </div>
+
+                <button onClick={() => handleNavigateTab('history')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'history' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
+                    <HistoryIcon size={22} className={activeTab === 'history' ? 'stroke-[2.5px]' : ''} />
+                    <span className="text-[9px] font-bold">Riwayat</span>
+                </button>
+                
+                <button onClick={() => handleNavigateTab('expenses')} className={`flex flex-col items-center justify-center gap-1 p-2 flex-1 transition-all ${activeTab === 'expenses' ? 'text-pink-600' : 'text-gray-400 hover:text-gray-500'}`}>
+                    <Wallet size={22} className={activeTab === 'expenses' ? 'stroke-[2.5px]' : ''} />
+                    <span className="text-[9px] font-bold">Biaya & Ops</span>
+                </button>
             </div>
 
             {/* RENDER MODALS */}
