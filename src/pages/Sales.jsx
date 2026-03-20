@@ -163,7 +163,8 @@ export default function Sales({ inventory, handleSaveOrder }) {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-24 md:pb-0 animate-fade-in">
-            <div className="lg:col-span-8 space-y-6">
+            {/* Mengubah col-span-8 menjadi col-span-6 (50% layar) */}
+            <div className="lg:col-span-6 space-y-6">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-pink-100">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-6 border-b border-pink-50 pb-4">
                         <div className="flex items-center gap-3 w-full">
@@ -236,7 +237,8 @@ export default function Sales({ inventory, handleSaveOrder }) {
                 </div>
             </div>
 
-            <div className="lg:col-span-4">
+            {/* Mengubah col-span-4 menjadi col-span-6 (50% layar) agar seimbang dengan kiri */}
+            <div className="lg:col-span-6">
                 <div className="bg-white p-6 rounded-3xl shadow-lg border border-pink-100 lg:sticky top-6 flex flex-col max-h-[calc(100vh-2rem)]">
                     <h3 className="font-bold text-lg mb-4 text-gray-800 border-b pb-2 flex-shrink-0">Nota Penjualan</h3>
                     <div className="space-y-3 mb-4 flex-shrink-0">

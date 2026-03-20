@@ -57,7 +57,7 @@ export default function App() {
     const [withdrawals, setWithdrawals] = useState([]);
     const [recentActivities, setRecentActivities] = useState([]);
 
-    // --- REVISI 1: Handle Tombol Back (Kembali) di HP / Browser ---
+    // --- Handle Tombol Back (Kembali) di HP / Browser ---
     useEffect(() => {
         window.history.replaceState({ tab: 'dashboard' }, '', '?tab=dashboard');
 
@@ -654,3 +654,4 @@ export default function App() {
         </div>
     );
 }
+
